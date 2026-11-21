@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MADA | مدى</title>
+<style>
+:root{--bg:#0b1120;--panel:#111b2e;--line:#26344d;--blue:#38bdf8;--violet:#8b5cf6;--text:#f1f5f9;--muted:#9aa9bf}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Tahoma,sans-serif}
+main{max-width:850px;margin:auto;padding:22px 14px 60px}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.brand{font-size:28px;font-weight:800;letter-spacing:.5px}.brand span{color:var(--blue)}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px}
+h1,h2{margin:0 0 14px}h1{font-size:22px}h2{font-size:18px}p{line-height:1.7}input,textarea,button{font:inherit}input,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0b1425;color:var(--text);margin:7px 0}
+textarea{min-height:115px;resize:vertical}button{border:0;border-radius:12px;padding:11px 16px;color:white;background:linear-gradient(100deg,var(--blue),var(--violet));font-weight:700;cursor:pointer}button.secondary{background:#24334d}button:disabled{opacity:.55;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}.muted{color:var(--muted);font-size:14px}.notice{padding:10px;border-radius:12px;background:#17253a;margin:10px 0;color:var(--muted)}.post{border-top:1px solid var(--line);padding:16px 0}.post:first-child{border-top:0}.posthead{display:flex;justify-content:space-between;gap:10px;align-items:center}.postname{font-weight:700}.postdate{font-size:12px;color:var(--muted)}.postbody{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8}.hidden{display:none!important}.actions{display:flex;justify-content:flex-end}.small{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body><main>
+<header class="top"><div class="brand">MADA <span>مدى</span></div><div id="topStatus" class="muted">المجتمع</div></header>
+<section id="auth" class="panel">
+<h1>مرحبًا بك في مدى</h1><p class="muted">سجّل الدخول أو أنشئ حسابًا للانضمام إلى المجتمع.</p>
+<div id="signupFields" class="hidden"><input id="name" placeholder="اسم العرض"><input id="username" placeholder="اسم المستخدم (بالإنجليزية)"></div>
+<input id="email" type="email" placeholder="البريد الإلكتروني" autocomplete="email"><input id="password" type="password" placeholder="كلمة المرور" autocomplete="current-password">
+<div class="row"><button id="loginBtn">تسجيل الدخول</button><button id="signupBtn" class="secondary">إنشاء حساب</button></div>
+<div id="authMsg" class="notice hidden"></div>
+</section>
+<section id="app" class="hidden">
+<section class="panel">
+<div class="row" style="align-items:center"><div><h1 id="welcome">حسابك</h1><div id="handle" class="muted"></div></div><div class="actions"><button id="logoutBtn" class="secondary">تسجيل الخروج</button></div></div>
+<label class="muted">نبذة قصيرة</label><textarea id="bio" maxlength="300" placeholder="اكتب نبذة عنك..."></textarea>
+<div class="row"><input id="country" maxlength="80" placeholder="البلد (اختياري)"><button id="saveProfile">حفظ الملف</button></div><div id="profileMsg" class="small"></div>
+</section>
+<section class="panel"><h2>اكتب منشورًا</h2><textarea id="postText" maxlength="2000" placeholder="شارك فكرة أو مشروعًا أو إنجازًا..."></textarea><div class="row"><span class="small">حتى 2000 حرف</span><button id="publishBtn">نشر</button></div><div id="postMsg" class="notice hidden"></div></section>
+<section class="panel"><div class="row" style="align-items:center"><h2 style="margin:0">منشورات المجتمع</h2><button id="refreshBtn" class="secondary">تحديث</button></div><div id="feedMsg" class="notice hidden"></div><div id="feed"></div></section>
+</section>
+<footer class="small" style="text-align:center">MADA — Show your work. Expand your world.</footer>
+</main>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const SUPABASE_URL='https://cuqsttoetvtbhgeepmhk.supabase.co';
+const SUPABASE_KEY='sb_publishable_wOm4bTajQHtGZEkjKHH_Pw_h0eZpr3I';
+const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+let user=null,profile=null,signupMode=false;
+function msg(id,text){$(id).textContent=text;$(id).classList.remove('hidden')}
+function hide(id){$(id).classList.add('hidden')}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function dateText(s){try{return new Date(s).toLocaleString('ar-EG',{dateStyle:'medium',timeStyle:'short'})}catch{return s||''}}
+function setSignup(on){signupMode=on;$('signupFields').classList.toggle('hidden',!on);$('signupBtn').textContent=on?'إنشاء حساب':'إنشاء حساب';$('loginBtn').textContent=on?'رجوع لتسجيل الدخول':'تسجيل الدخول';$('loginBtn').onclick=on?()=>setSignup(false):login;$('signupBtn').onclick=on?signup:()=>setSignup(true)}
+async function login(){hide('authMsg');let email=$('email').value.trim(),password=$('password').value;if(!email||!password)return msg('authMsg','اكتب البريد الإلكتروني وكلمة المرور.');const {error}=await sb.auth.signInWithPassword({email,password});if(error)msg('authMsg',error.message);else await boot()}
+async function signup(){hide('authMsg');let email=$('email').value.trim(),password=$('password').value,name=$('name').value.trim(),username=$('username').value.trim().toLowerCase();if(!email||!password||!name||!username)return msg('authMsg','املأ كل البيانات المطلوبة.');if(!/^[a-z0-9_]{3,20}$/.test(username))return msg('authMsg','اسم المستخدم: 3 إلى 20 حرفًا/رقمًا أو underscore.');const {data,error}=await sb.auth.signUp({email,password,options:{data:{display_name:name,username}}});if(error)msg('authMsg',error.message);else msg('authMsg',data.session?'تم إنشاء الحساب.':'تم إرسال رسالة تأكيد إلى بريدك. افتحها لتأكيد الحساب.')}
+$('loginBtn').onclick=login;$('signupBtn').onclick=()=>setSignup(true);
+async function boot(){const {data:{session}}=await sb.auth.getSession();user=session?.user||null;renderShell();if(user)await loadProfileAndFeed()}
+function renderShell(){$('auth').classList.toggle('hidden',!!user);$('app').classList.toggle('hidden',!user);$('topStatus').textContent=user?'متصل':'المجتمع';if(user)$('logoutBtn').onclick=async()=>{await sb.auth.signOut();user=null;renderShell()}}
+async function loadProfileAndFeed(){await loadProfile();await loadFeed()}
+async function loadProfile(){let {data,error}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();if(error){msg('profileMsg','تعذّر تحميل الملف: '+error.message);return}if(!data){let md=user.user_metadata||{};let {data:created,error:insertErr}=await sb.from('profiles').insert({id:user.id,username:md.username||('user_'+user.id.slice(0,8)),display_name:md.display_name||'مستخدم مدى'}).select().maybeSingle();if(insertErr){msg('profileMsg','لم يتم إنشاء الملف تلقائيًا: '+insertErr.message);return}data=created}profile=data;$('welcome').textContent=data.display_name||data.username||'حسابك';$('handle').textContent=data.username?'@'+data.username:'';$('bio').value=data.bio||'';$('country').value=data.country||''}
+$('saveProfile').onclick=async()=>{if(!user)return;const {error}=await sb.from('profiles').update({bio:$('bio').value.trim(),country:$('country').value.trim()}).eq('id',user.id);msg('profileMsg',error?'تعذّر الحفظ: '+error.message:'تم حفظ الملف.');if(!error)await loadProfile()}
+async function loadFeed(){hide('feedMsg');$('feed').innerHTML='<p class="muted">جارٍ تحميل المنشورات...</p>';let {data,error}=await sb.from('posts').select('*').order('created_at',{ascending:false}).limit(50);if(error){$('feed').innerHTML='';return msg('feedMsg','تعذّر تحميل المنشورات. قد نحتاج مراجعة صلاحيات جدول posts (RLS): '+error.message)}if(!data?.length){$('feed').innerHTML='<p class="muted">لا توجد منشورات بعد. كن أول من يشارك!</p>';return}
+const ids=[...new Set(data.map(p=>p.user_id).filter(Boolean))];let profiles={};if(ids.length){let {data:usersData,error:pe}=await sb.from('profiles').select('id,username,display_name').in('id',ids);if(!pe)for(let x of usersData||[])profiles[x.id]=x}
+$('feed').innerHTML=data.map(p=>{let a=profiles[p.user_id]||{};let nm=a.display_name||a.username||'مستخدم مدى';return `<article class="post"><div class="posthead"><div class="postname">${esc(nm)} ${a.username?`<span class="muted">@${esc(a.username)}</span>`:''}</div><div class="postdate">${esc(dateText(p.created_at))}</div></div><p class="postbody">${esc(p.content||p.body||'')}</p></article>`}).join('')}
+$('publishBtn').onclick=async()=>{hide('postMsg');let content=$('postText').value.trim();if(!content)return msg('postMsg','اكتب محتوى المنشور أولًا.');$('publishBtn').disabled=true;let {error}=await sb.from('posts').insert({user_id:user.id,content});$('publishBtn').disabled=false;if(error)msg('postMsg','تعذّر نشر المنشور: '+error.message);else{$('postText').value='';msg('postMsg','تم نشر منشورك!');await loadFeed()}}
+$('refreshBtn').onclick=loadFeed;
+sb.auth.onAuthStateChange((_event,session)=>{user=session?.user||null;renderShell();if(user)loadProfileAndFeed()});
+await boot();
+</script></body></html>
